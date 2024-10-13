@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ClicaApp",
-    "slug": "ClicaApp",
+    "name": "Clica",
+    "slug": "Clica",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,13 +15,20 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.sadie.clicaapp",
+      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/androicon.png",
         "backgroundColor": "#ffffff"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "11b6f395-358f-460a-bd6f-2ce9f226024b"
+      }
     }
   }
 }
