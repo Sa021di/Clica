@@ -1,58 +1,103 @@
-import React, { useEffect, useState } from 'react';
-import { View, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WebView from 'react-native-webview';
+import { useFocusEffect } from '@react-navigation/native';  // Для обновления при возврате на экран
 
-const LoginScreen = () => {
+const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isDataLoaded, setIsDataLoaded] = useState(false);  // Флаг для отслеживания загрузки данных
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [autoLoginEnabled, setAutoLoginEnabled] = useState(false);  // Флаг автологина
+  const webviewRef = useRef(null);
 
-  useEffect(() => {
-    // Загружаем сохраненные данные из AsyncStorage
-    const loadLoginData = async () => {
-      const savedUsername = await AsyncStorage.getItem('username');
-      const savedPassword = await AsyncStorage.getItem('password');
-      if (savedUsername && savedPassword) {
-        setUsername(savedUsername);
-        setPassword(savedPassword);
-        setIsDataLoaded(true);  // Устанавливаем флаг, что данные загружены
-        console.log("Данные загружены:", savedUsername, savedPassword);  // Логируем для проверки
-      } else {
-        console.log("Данные не найдены");
-        Alert.alert("Error", "Login credentials not found in AsyncStorage.");
+  // Функция для загрузки данных из AsyncStorage
+  const loadLoginData = async () => {
+    const savedUsername = await AsyncStorage.getItem('username');
+    const savedPassword = await AsyncStorage.getItem('password');
+    const autoLogin = await AsyncStorage.getItem('autoLogin');
+
+    if (savedUsername && savedPassword) {
+      setUsername(savedUsername);
+      setPassword(savedPassword);
+      setIsDataLoaded(true);
+      // Если автологин включён, устанавливаем флаг
+      if (autoLogin === 'true') {
+        setAutoLoginEnabled(true);
       }
-    };
+    } else {
+      setIsDataLoaded(false);  // Если данных нет, показываем сообщение
+    }
+  };
+
+  // Загружаем данные при первом рендере
+  useEffect(() => {
     loadLoginData();
   }, []);
 
-  // JavaScript, который будет выполняться в WebView для заполнения полей и отправки формы
-  const injectedJavaScript = `
-    document.querySelector('input[id="ctl00_cplPageContent_txtUserID"]').value = '${username}';
-    document.querySelector('input[id="ctl00_cplPageContent_txtPassword"]').value = '${password}';
-    document.querySelector('a[id="ctl00_cplPageContent_LinkButton1"]').click();  // Имитация нажатия на кнопку
-    window.ReactNativeWebView.postMessage("Form filled and submitted");
+  // JavaScript для автологина через WebView
+  const loginJavaScript = `
+    if ('${username}' !== '' && '${password}' !== '') {
+      document.querySelector('input[id="ctl00_cplPageContent_txtUserID"]').value = '${username}';
+      document.querySelector('input[id="ctl00_cplPageContent_txtPassword"]').value = '${password}';
+      document.querySelector('a[id="ctl00_cplPageContent_LinkButton1"]').click();
+    }
     true;
   `;
 
-  // Обработка сообщений из WebView
-  const handleWebViewMessage = (event) => {
-    console.log("Сообщение из WebView:", event.nativeEvent.data);
-    Alert.alert("Info", event.nativeEvent.data);  // Показываем сообщение о том, что форма была отправлена
+  // Обновляем данные каждый раз при возврате на экран LoginScreen
+  useFocusEffect(
+    React.useCallback(() => {
+      loadLoginData();  // Перезагружаем данные при каждом возврате на экран
+    }, [])
+  );
+
+  // Обработка изменения URL для отслеживания логаута
+  const handleNavigationStateChange = async (navState) => {
+    const currentUrl = navState.url;
+    console.log('Текущий URL:', currentUrl);
+
+    // Если пользователь переходит на страницу логаута
+    if (currentUrl.includes('/logout.aspx')) {
+      // Отключаем только автологин, не удаляя логин и пароль
+      await AsyncStorage.setItem('autoLogin', 'false');
+
+      Alert.alert("Logged out", "Auto-login has been disabled. You will need to log in manually next time.");
+
+      // Сбрасываем флаг автологина, но оставляем логин и пароль
+      setAutoLoginEnabled(false);
+
+      // Перенаправляем на экран настроек
+      navigation.navigate('SettingsScreen');
+    }
   };
+
+  // Проверка и выполнение автологина при загрузке
+  useEffect(() => {
+    if (isDataLoaded && autoLoginEnabled && webviewRef.current) {
+      webviewRef.current.injectJavaScript(loginJavaScript); // Выполняем автологин, если включен
+    }
+  }, [isDataLoaded, autoLoginEnabled]);
 
   return (
     <View style={{ flex: 1 }}>
-      {isDataLoaded && (  // Рендерим WebView только после загрузки данных из AsyncStorage
+      {isDataLoaded ? (
         <WebView
-          source={{ uri: 'https://clica.jp/spn/' }}  // Загружаем страницу авторизации
+          ref={webviewRef}
+          source={{ uri: 'https://clica.jp/app/' }}
           style={{ flex: 1 }}
-          injectedJavaScript={injectedJavaScript}  // Внедряем JavaScript для заполнения формы и отправки
-          onMessage={handleWebViewMessage}  // Обрабатываем сообщения из WebView
+          injectedJavaScript={loginJavaScript}  // Внедряем JavaScript для автологина
+          onNavigationStateChange={handleNavigationStateChange}  // Отслеживаем изменения URL
           onLoadEnd={() => {
-            console.log('Страница загружена и форма отправлена');
+            if (autoLoginEnabled) {
+              webviewRef.current.injectJavaScript(loginJavaScript);  // Автологин при загрузке
+            }
           }}
         />
+      ) : (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Waiting for login data...</Text>
+        </View>
       )}
     </View>
   );

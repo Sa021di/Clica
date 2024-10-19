@@ -7,17 +7,30 @@ const SettingsScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [autoLogin, setAutoLogin] = useState(false);
 
+  useEffect(() => {
+    // Загружаем сохраненные данные из AsyncStorage при загрузке экрана настроек
+    const loadSettings = async () => {
+      const savedUsername = await AsyncStorage.getItem('username');
+      const savedPassword = await AsyncStorage.getItem('password');
+      const savedAutoLogin = await AsyncStorage.getItem('autoLogin');
+
+      if (savedUsername) setUsername(savedUsername);
+      if (savedPassword) setPassword(savedPassword);
+      if (savedAutoLogin === 'true') setAutoLogin(true);
+    };
+    loadSettings();
+  }, []);
+
   const handleSaveSettings = async () => {
     try {
-      // Сохраняем логин, пароль и статус автологина в AsyncStorage
+      // Сохраняем логин, пароль и флаг автологина в AsyncStorage
       await AsyncStorage.setItem('username', username);
       await AsyncStorage.setItem('password', password);
       await AsyncStorage.setItem('autoLogin', autoLogin.toString());
 
-      // Оповещаем об успешном сохранении
       Alert.alert('Success', 'Settings have been saved.');
 
-      // Перенаправляем на LoginScreen для автоматической авторизации
+      // Перенаправляем пользователя на LoginScreen для автоматической авторизации
       navigation.navigate('LoginScreen');
     } catch (e) {
       Alert.alert('Error', 'Failed to save settings.');
