@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, Text, TextInput, TouchableOpacity, Switch, Alert, StyleSheet, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { SafeAreaView, View, Text, TextInput, TouchableOpacity, Switch, Alert, StyleSheet, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WebView from 'react-native-webview';
 
@@ -7,7 +7,7 @@ const SettingsScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [autoLogin, setAutoLogin] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Флаг для анимации загрузки
+  const [webviewUrl, setWebviewUrl] = useState(null); // Для открытия WebView
 
   useEffect(() => {
     // Загружаем сохраненные данные из AsyncStorage при загрузке экрана настроек
@@ -33,32 +33,28 @@ const SettingsScreen = ({ navigation }) => {
       await AsyncStorage.setItem('password', password || '');  // Обеспечиваем, что сохраняется строка
       await AsyncStorage.setItem('autoLogin', autoLogin.toString());
 
-      // Показ анимации загрузки перед попыткой входа
-      setIsLoading(true);
+      Alert.alert('Success', 'Settings have been saved.');
 
-      // Оповещаем об успешном сохранении и запускаем автологин через LoginScreen
-      Alert.alert('Success', 'Settings have been saved.', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('LoginScreen') // Переход на LoginScreen для попытки входа
-        }
-      ]);
+      // Перенаправляем пользователя на LoginScreen для автоматической авторизации
+      navigation.navigate('LoginScreen');
     } catch (e) {
       Alert.alert('Error', 'Failed to save settings.');
-      setIsLoading(false); // Останавливаем загрузку при ошибке
     }
   };
 
-  if (isLoading) {
+  if (webviewUrl) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Logging in...</Text>
-      </View>
+      <SafeAreaView style={{ flex: 1 }}>
+        <WebView source={{ uri: webviewUrl }} style={{ flex: 1 }} />
+        <TouchableOpacity style={styles.backButton} onPress={() => setWebviewUrl(null)}>
+          <Text style={styles.backButtonText}>戻る</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
   const isSwitchDisabled = username === '' || password === ''; // Переключатель отключен, если инпуты пустые
+  const isSaveButtonDisabled = username === '' || password === ''; // Кнопка "Сохранить" отключена, если данные пустые
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -91,14 +87,12 @@ const SettingsScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.saveButton, { backgroundColor: isSwitchDisabled ? '#ccc' : 'black' }]}
+            style={[styles.saveButton, { backgroundColor: isSaveButtonDisabled ? '#ccc' : 'black' }]}
             onPress={handleSaveSettings}
-            disabled={isSwitchDisabled}  // Отключаем кнопку только если поля пустые
+            disabled={isSaveButtonDisabled}
           >
             <Text style={styles.buttonText}>保存</Text>
           </TouchableOpacity>
-          
-          {/* Кнопки перехода на другие страницы */}
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => setWebviewUrl('https://clica.jp/app/signup/user_entry.aspx')}
@@ -167,16 +161,16 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 16,
   },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
+  backButton: {
+    backgroundColor: 'black',
+    padding: 10,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    zIndex: 10,
+    borderRadius: 8,
+    margin: 10,
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 16,
   },
 });
 
