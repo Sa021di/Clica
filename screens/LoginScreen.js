@@ -12,6 +12,7 @@ const LoginScreen = ({ navigation }) => {
   const webviewRef = useRef(null);
   const lastLoggedUrl = useRef('');
   const attemptCount = useRef(0);  // Счетчик попыток
+  const isHandlingFailure = useRef(false);  // Флаг для предотвращения повторной обработки
 
   // Функция для загрузки данных из AsyncStorage
   const loadLoginData = async () => {
@@ -67,9 +68,12 @@ const LoginScreen = ({ navigation }) => {
     if (currentUrl === lastLoggedUrl.current) {
       console.log('URL не изменился, предотвращаем повторную попытку');
       attemptCount.current += 1;  // Увеличиваем счетчик при каждой проверке
-      if (attemptCount.current >= 3) {  // Если после 3 попыток URL не изменился
+
+      if (attemptCount.current >= 3 && !isHandlingFailure.current) {  // Если после 3 попыток URL не изменился и мы не обрабатываем ошибку
         console.log('Не удалось войти в систему, сброс данных...');
         
+        isHandlingFailure.current = true;  // Устанавливаем флаг, чтобы предотвратить повторную обработку
+
         // Сбрасываем флаг автологина
         setAutoLoginEnabled(false); 
 
@@ -95,6 +99,7 @@ const LoginScreen = ({ navigation }) => {
     if (currentUrl.includes('/home/default.aspx')) {
       console.log('Login successful, resetting attempt count');
       attemptCount.current = 0;  // Сбрасываем счетчик при успешном входе
+      isHandlingFailure.current = false;  // Сбрасываем флаг после успешного входа
     }
 
     if (currentUrl.includes('/logout.aspx')) {
