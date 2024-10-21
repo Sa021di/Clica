@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.sadie.clicaapp",
-      "versionCode": 2,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/androicon.png",
         "backgroundColor": "#ffffff"
