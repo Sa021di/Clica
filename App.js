@@ -9,17 +9,25 @@ import SettingsScreen from './screens/SettingsScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const AuthTabs = () => (
+const AuthTabs = ({ onLogin }) => (
   <Tab.Navigator>
-    <Tab.Screen name="Login" component={LoginScreen} />
-    <Tab.Screen name="Settings" component={SettingsScreen} />
+    <Tab.Screen name="Login">
+      {() => <LoginScreen onLogin={onLogin} />}
+    </Tab.Screen>
+    <Tab.Screen name="Settings">
+      {() => <SettingsScreen onSettingsSubmit={onLogin} />}
+    </Tab.Screen>
   </Tab.Navigator>
 );
 
-const MainStack = () => (
+const MainStack = ({ onLogin }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="AuthTabs" component={AuthTabs} />
-    <Stack.Screen name="Main" component={LoginScreen} />
+    <Stack.Screen name="AuthTabs">
+      {() => <AuthTabs onLogin={onLogin} />}
+    </Stack.Screen>
+    <Stack.Screen name="Main">
+      {() => <LoginScreen onLogin={onLogin} />}
+    </Stack.Screen>
   </Stack.Navigator>
 );
 
@@ -29,15 +37,21 @@ const App = () => {
   useEffect(() => {
     const checkLoginStatus = async () => {
       const loginData = await AsyncStorage.getItem('loginData');
-      setIsLoggedIn(loginData ? true : false); // Если данные для логина есть, пользователь считается авторизованным
+      setIsLoggedIn(loginData ? true : false);
     };
 
     checkLoginStatus();
   }, []);
 
+  const handleLogin = async (loginData) => {
+    // Сохраняем данные для логина в AsyncStorage и выполняем вход
+    await AsyncStorage.setItem('loginData', JSON.stringify(loginData));
+    setIsLoggedIn(true); // Устанавливаем статус как авторизованный
+  };
+
   return (
     <NavigationContainer>
-      <MainStack />
+      <MainStack onLogin={handleLogin} />
     </NavigationContainer>
   );
 };

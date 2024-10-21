@@ -2,37 +2,53 @@ import React, { useEffect, useState } from 'react';
 import { SafeAreaView, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 
 const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [webViewKey, setWebViewKey] = useState(0); // Ключ для обновления WebView
   const navigation = useNavigation();
+  const isFocused = useIsFocused(); // Проверка, когда экран активен
 
-  useEffect(() => {
-    const fetchLoginData = async () => {
-      try {
-        const storedData = await AsyncStorage.getItem('loginData');
-        if (storedData) {
-          const parsedData = JSON.parse(storedData);
-          setLoginData(parsedData);
-          console.log('Login data fetched from AsyncStorage:', parsedData);
-        } else {
-          console.log('No login data found in AsyncStorage');
-        }
-      } catch (error) {
-        console.error('Error fetching login data from AsyncStorage:', error);
-      } finally {
-        setIsLoading(false);
+  // Функция для загрузки данных из AsyncStorage
+  const fetchLoginData = async () => {
+    try {
+      const storedData = await AsyncStorage.getItem('loginData');
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        setLoginData(parsedData);
+        console.log('Login data fetched from AsyncStorage:', parsedData); // Лог данных
+      } else {
+        console.log('No login data found in AsyncStorage');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching login data from AsyncStorage:', error);
+    }
+  };
 
-    fetchLoginData();
+  // Загрузка данных при первом рендере
+  useEffect(() => {
+    fetchLoginData().finally(() => setIsLoading(false));
   }, [navigation]);
 
+  // Обновление WebView при фокусировке экрана
+  useEffect(() => {
+    if (isFocused) {
+      fetchLoginData(); // Обновляем данные при каждом фокусе экрана
+      console.log('LoginScreen is focused, reloading WebView...');
+      setWebViewKey(prevKey => prevKey + 1); // Обновляем ключ для перезагрузки WebView
+    }
+  }, [isFocused]);
+
+  // Инъекция JavaScript для автозаполнения и отправки формы
   const injectJavaScriptToFillForm = () => {
-    if (loginData && loginData.autoLoginEnabled) {
+    if (!loginData) {
+      console.log('Login data is missing or auto-login is disabled.');
+      return '';
+    }
+
+    if (loginData.autoLoginEnabled) {
       console.log('Injecting JavaScript to fill the form with:', loginData);
       return `
         (function() {
@@ -54,6 +70,7 @@ const LoginScreen = () => {
         })();
       `;
     }
+    console.log('Auto-login is disabled.');
     return '';
   };
 
@@ -69,10 +86,10 @@ const LoginScreen = () => {
       const storedData = await AsyncStorage.getItem('loginData');
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        parsedData.autoLoginEnabled = false;
+        parsedData.autoLoginEnabled = false; // Отключаем автологин при логауте
         await AsyncStorage.setItem('loginData', JSON.stringify(parsedData));
       }
-      navigation.replace('AuthTabs');
+      navigation.replace('AuthTabs'); // Возвращаемся на экран авторизации после логаута
     }
   };
 

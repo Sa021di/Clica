@@ -41,8 +41,10 @@ const SettingsScreen = () => {
             {
               text: 'OK',
               onPress: () => {
-                // Перенаправление на LoginScreen после нажатия "OK"
-                navigation.navigate('Login');
+                // Переход только после завершения сохранения данных
+                setTimeout(() => {
+                  navigation.navigate('Login');
+                }, 500); // Добавляем небольшую задержку, чтобы убедиться, что данные сохранены
               },
             },
           ]
