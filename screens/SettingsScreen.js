@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, Alert, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Alert, TouchableOpacity, Text, StyleSheet, SafeAreaView, ActivityIndicator, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { WebView } from 'react-native-webview'; // Для отображения WebView
 
 const SettingsScreen = () => {
   const [userID, setUserID] = useState('');
   const [password, setPassword] = useState('');
-  const navigation = useNavigation();
+  const [isLoadingData, setIsLoadingData] = useState(true); // State for loading async data
+  const [webviewUrl, setWebviewUrl] = useState(null); // State for WebView URL
+  const navigation = useNavigation(); // Get the navigation object
 
   useEffect(() => {
     const fetchLoginData = async () => {
@@ -20,6 +23,8 @@ const SettingsScreen = () => {
         }
       } catch (error) {
         console.error('Error loading login data in SettingsScreen:', error);
+      } finally {
+        setIsLoadingData(false); // Окончание загрузки данных
       }
     };
 
@@ -56,45 +61,73 @@ const SettingsScreen = () => {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <TextInput
-        placeholder="ログインIDを入力"
-        value={userID}
-        onChangeText={setUserID}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="パスワードを入力"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      <TouchableOpacity style={styles.saveButton} onPress={saveLoginDataAndLogin}>
-        <Text style={styles.saveButtonText}>保存</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        onPress={() => navigation.navigate('WebViewScreen', { url: 'signup/user_entry.aspx' })} 
-        style={styles.linkButton}>
-        <Text style={styles.linkButtonText}>受講者アカウント登録</Text>
-      </TouchableOpacity>
+  if (isLoadingData) {
+    // Показываем индикатор загрузки, пока данные не загрузятся
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
-      <TouchableOpacity 
-        onPress={() => navigation.navigate('WebViewScreen', { url: 'remind/_sub/remind.aspx' })} 
-        style={styles.linkButton}>
-        <Text style={styles.linkButtonText}>パスワードを忘れた方</Text>
-      </TouchableOpacity>
-    </View>
+  // Если есть URL для WebView, отображаем страницу
+  if (webviewUrl) {
+    return (
+      <SafeAreaView style={{ flex: 1 }}>
+        <WebView source={{ uri: webviewUrl }} style={{ flex: 1 }} />
+        <TouchableOpacity style={styles.backButton} onPress={() => setWebviewUrl(null)}>
+          <Text style={styles.backButtonText}>戻る</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
+      <View style={{ flex: 1 }}>
+        <View style={styles.formContainer}>
+          <TextInput
+            placeholder="ログインIDを入力"
+            value={userID}
+            onChangeText={setUserID}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="パスワードを入力"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+          />
+
+          <TouchableOpacity style={styles.saveButton} onPress={saveLoginDataAndLogin}>
+            <Text style={styles.saveButtonText}>保存</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => setWebviewUrl('https://clica.jp/app/signup/user_entry.aspx')}
+          >
+            <Text style={styles.linkText}>受講者アカウント登録</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => setWebviewUrl('https://clica.jp/app/remind/_sub/remind.aspx')}
+          >
+            <Text style={styles.linkText}>パスワードを忘れた方</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  formContainer: {
     padding: 20,
-    flex: 1,
-    justifyContent: 'center',
+    flexGrow: 1,
   },
   input: {
     marginBottom: 10,
@@ -115,15 +148,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   linkButton: {
-    backgroundColor: '#f0f0f0', // Light background for the link button
-    borderRadius: 5, // Rounded corners
-    paddingVertical: 15, // Vertical padding for the button
-    marginBottom: 10, // Space between buttons
-    alignItems: 'center', // Center text horizontally
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  linkButtonText: {
-    color: '#000', // Text color
-    fontSize: 16, // Font size
+  linkText: {
+    color: '#007AFF',
+    fontSize: 16,
+  },
+  backButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 
