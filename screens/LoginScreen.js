@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, ActivityIndicator } from 'react-native';
+import { SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -7,41 +7,38 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [webViewKey, setWebViewKey] = useState(0); // Ключ для обновления WebView
+  const [webViewKey, setWebViewKey] = useState(0);
   const navigation = useNavigation();
-  const isFocused = useIsFocused(); // Проверка, когда экран активен
+  const isFocused = useIsFocused();
 
-  // Функция для загрузки данных из AsyncStorage
   const fetchLoginData = async () => {
     try {
       const storedData = await AsyncStorage.getItem('loginData');
       if (storedData) {
         const parsedData = JSON.parse(storedData);
         setLoginData(parsedData);
-        console.log('Login data fetched from AsyncStorage:', parsedData); // Лог данных
+        console.log('Login data fetched from AsyncStorage:', parsedData);
       } else {
         console.log('No login data found in AsyncStorage');
       }
     } catch (error) {
       console.error('Error fetching login data from AsyncStorage:', error);
+      Alert.alert('Error', 'Failed to fetch login data');
     }
   };
 
-  // Загрузка данных при первом рендере
   useEffect(() => {
     fetchLoginData().finally(() => setIsLoading(false));
   }, [navigation]);
 
-  // Обновление WebView при фокусировке экрана
   useEffect(() => {
     if (isFocused) {
-      fetchLoginData(); // Обновляем данные при каждом фокусе экрана
+      fetchLoginData();
       console.log('LoginScreen is focused, reloading WebView...');
-      setWebViewKey(prevKey => prevKey + 1); // Обновляем ключ для перезагрузки WebView
+      setWebViewKey(prevKey => prevKey + 1);
     }
   }, [isFocused]);
 
-  // Инъекция JavaScript для автозаполнения и отправки формы
   const injectJavaScriptToFillForm = () => {
     if (!loginData) {
       console.log('Login data is missing or auto-login is disabled.');
@@ -55,21 +52,30 @@ const LoginScreen = () => {
           console.log('Starting to fill the form...');
           var userInput = document.getElementById('ctl00_cplPageContent_txtUserID');
           var passwordInput = document.getElementById('ctl00_cplPageContent_txtPassword');
-          
+
           if (userInput && passwordInput) {
             userInput.value = '${loginData.userID}';
             passwordInput.value = '${loginData.password}';
             console.log('UserID and Password filled.');
             setTimeout(() => {
-              __doPostBack('ctl00$cplPageContent$LinkButton1', ''); // Отправляем форму
+              __doPostBack('ctl00$cplPageContent$LinkButton1', '');
               console.log('Form submitted.');
-            }, 1000); // Задержка перед отправкой формы
+            }, 1000);
           } else {
             console.error('Form elements not found.');
+          }
+
+          // Перехватываем клик на кнопку логаута
+          var logoutButton = document.querySelector('a[href="https://clica.jp/app/logout.aspx"]');
+          if (logoutButton) {
+            logoutButton.addEventListener('click', function() {
+              window.ReactNativeWebView.postMessage('logout');
+            });
           }
         })();
       `;
     }
+
     console.log('Auto-login is disabled.');
     return '';
   };
@@ -79,27 +85,26 @@ const LoginScreen = () => {
   
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
-      // Скрываем табы
       navigation.setOptions({ tabBarStyle: { display: 'none' } });
     } else {
-      // Показываем табы
       navigation.setOptions({ tabBarStyle: { display: 'flex' } });
     }
   
     if (event.url.includes('logout.aspx')) {
-      console.log('Logged out');
-      const storedData = await AsyncStorage.getItem('loginData');
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        parsedData.autoLoginEnabled = false; // Отключаем автологин при логауте
-        await AsyncStorage.setItem('loginData', JSON.stringify(parsedData));
-      }
-      navigation.replace('AuthTabs'); // Возвращаемся на экран авторизации после логаута
+      console.log('Logout initiated');
+      // Очищаем данные из AsyncStorage
+      await AsyncStorage.removeItem('loginData');
+      console.log('Login data cleared from AsyncStorage');
+      // Переход на экран авторизации
+      navigation.replace('AuthTabs');
     }
-  };  
+  };
 
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
+    if (event.nativeEvent.data === 'logout') {
+      handleNavigationStateChange({ url: 'logout.aspx' }); // Имитируем переход к логауту
+    }
   };
 
   if (isLoading) {
@@ -111,9 +116,9 @@ const LoginScreen = () => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, paddingTop: 50 }}>
       <WebView
-        key={webViewKey} // Используем ключ для принудительного обновления
+        key={webViewKey}
         source={{ uri: 'https://clica.jp/app/' }}
         injectedJavaScript={injectJavaScriptToFillForm()} 
         onNavigationStateChange={handleNavigationStateChange} 

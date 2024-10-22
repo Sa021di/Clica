@@ -13,36 +13,29 @@ const Stack = createStackNavigator();
 
 const AuthTabs = ({ onLogin }) => (
   <Tab.Navigator screenOptions={{ headerShown: false }}>
-    <Tab.Screen name="Login">
-      {() => <LoginScreen onLogin={onLogin} />}
-    </Tab.Screen>
-    <Tab.Screen name="Settings">
-      {() => <SettingsScreen onSettingsSubmit={onLogin} />}
-    </Tab.Screen>
+    <Tab.Screen name="Login" children={() => <LoginScreen onLogin={onLogin} />} />
+    <Tab.Screen name="Settings" children={() => <SettingsScreen onSettingsSubmit={onLogin} />} />
   </Tab.Navigator>
 );
 
 const MainStack = ({ onLogin, isLoggedIn }) => (
-  <Stack.Navigator screenOptions={{ headerShown: !isLoggedIn }}>
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AuthTabs">
       {() => <AuthTabs onLogin={onLogin} />}
     </Stack.Screen>
-    <Stack.Screen name="Main">
-      {() => <WebView source={{ uri: 'https://clica.jp/app/' }} />}
-    </Stack.Screen>
+    <Stack.Screen name="Main" component={WebView} />
   </Stack.Navigator>
 );
 
 const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true); // Добавляем состояние загрузки
-  const tabAnimation = useRef(new Animated.Value(0)).current;
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkLoginStatus = async () => {
       const loginData = await AsyncStorage.getItem('loginData');
       setIsLoggedIn(!!loginData);
-      setLoading(false); // Останавливаем индикатор загрузки
+      setLoading(false);
     };
 
     checkLoginStatus();
@@ -50,22 +43,12 @@ const App = () => {
 
   const handleLogin = async (loginData) => {
     await AsyncStorage.setItem('loginData', JSON.stringify(loginData));
-    setIsLoggedIn(true); // Устанавливаем статус как авторизованный
+    setIsLoggedIn(true);
   };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('loginData');
-    setIsLoggedIn(false); // Устанавливаем статус как не авторизованный
-  };
-
-  const handleNavigationStateChange = (event) => {
-    console.log('Navigating to:', event.url);
-    if (event.url.includes('home/default.aspx')) {
-      console.log('Successfully logged in');
-      // Скрываем табы и заголовок при переходе на home/default.aspx
-    } else {
-      // Показываем табы и заголовок на остальных страницах
-    }
+    setIsLoggedIn(false);
   };
 
   if (loading) {
