@@ -76,11 +76,16 @@ const LoginScreen = () => {
 
   const handleNavigationStateChange = async (event) => {
     console.log('Navigating to:', event.url);
-
+  
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
+      // Скрываем табы
+      navigation.setOptions({ tabBarStyle: { display: 'none' } });
+    } else {
+      // Показываем табы
+      navigation.setOptions({ tabBarStyle: { display: 'flex' } });
     }
-
+  
     if (event.url.includes('logout.aspx')) {
       console.log('Logged out');
       const storedData = await AsyncStorage.getItem('loginData');
@@ -91,7 +96,7 @@ const LoginScreen = () => {
       }
       navigation.replace('AuthTabs'); // Возвращаемся на экран авторизации после логаута
     }
-  };
+  };  
 
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
