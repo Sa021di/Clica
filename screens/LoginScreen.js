@@ -82,23 +82,29 @@ const LoginScreen = () => {
 
   const handleNavigationStateChange = async (event) => {
     console.log('Navigating to:', event.url);
-  
+    
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
       navigation.setOptions({ tabBarStyle: { display: 'none' } });
     } else {
       navigation.setOptions({ tabBarStyle: { display: 'flex' } });
     }
-  
+
     if (event.url.includes('logout.aspx')) {
       console.log('Logout initiated');
-      // Очищаем данные из AsyncStorage
-      await AsyncStorage.removeItem('loginData');
-      console.log('Login data cleared from AsyncStorage');
+  
+      // Выключаем авто-логин, но сохраняем данные пользователя в AsyncStorage
+      const loginData = await AsyncStorage.getItem('loginData');
+      if (loginData) {
+        const updatedData = { ...JSON.parse(loginData), autoLoginEnabled: false };
+        await AsyncStorage.setItem('loginData', JSON.stringify(updatedData));
+        console.log('Auto-login disabled, but login data remains in AsyncStorage');
+      }
+  
       // Переход на экран авторизации
       navigation.replace('AuthTabs');
     }
-  };
+  };  
 
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
@@ -116,18 +122,18 @@ const LoginScreen = () => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, }}>
+    <SafeAreaView style={{ flex: 1, paddingTop: 50}}>
       <WebView
         key={webViewKey}
         source={{ uri: 'https://clica.jp/app/' }}
-        injectedJavaScript={injectJavaScriptToFillForm()} 
-        onNavigationStateChange={handleNavigationStateChange} 
-        onMessage={handleMessage} 
-        javaScriptEnabled={true} 
-        domStorageEnabled={true} 
-        startInLoadingState={true} 
-        mixedContentMode="compatibility" 
-        originWhitelist={['*']} 
+        injectedJavaScript={injectJavaScriptToFillForm()}
+        onNavigationStateChange={handleNavigationStateChange}
+        onMessage={handleMessage}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        startInLoadingState={true}
+        mixedContentMode="compatibility"
+        originWhitelist={['*']}
         style={{ flex: 1 }}
       />
     </SafeAreaView>
