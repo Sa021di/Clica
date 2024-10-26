@@ -122,7 +122,7 @@ const LoginScreen = () => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingTop: 50}}>
+    <SafeAreaView style={{ flex: 1, }}>
       <WebView
         key={webViewKey}
         source={{ uri: 'https://clica.jp/app/' }}
