@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Alert, TouchableOpacity, Text, StyleSheet, SafeAreaView, ActivityIndicator, StatusBar } from 'react-native';
+import { View, TextInput, Alert, TouchableOpacity, Text, StyleSheet, SafeAreaView, ActivityIndicator, StatusBar, Switch } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview'; // Для отображения WebView
@@ -9,6 +9,7 @@ const SettingsScreen = () => {
   const [password, setPassword] = useState('');
   const [isLoadingData, setIsLoadingData] = useState(true); // State for loading async data
   const [webviewUrl, setWebviewUrl] = useState(null); // State for WebView URL
+  const [autoLoginEnabled, setAutoLoginEnabled] = useState(false); // State for auto-login switch
   const navigation = useNavigation(); // Get the navigation object
 
   useEffect(() => {
@@ -19,6 +20,7 @@ const SettingsScreen = () => {
           const parsedData = JSON.parse(storedData);
           setUserID(parsedData.userID);
           setPassword(parsedData.password);
+          setAutoLoginEnabled(parsedData.autoLoginEnabled || false); // Устанавливаем состояние для переключателя
           console.log('Login data loaded in SettingsScreen:', parsedData);
         }
       } catch (error) {
@@ -33,7 +35,7 @@ const SettingsScreen = () => {
 
   const saveLoginDataAndLogin = async () => {
     if (userID && password) {
-      const loginData = { userID, password, autoLoginEnabled: true };
+      const loginData = { userID, password, autoLoginEnabled };
       try {
         await AsyncStorage.setItem('loginData', JSON.stringify(loginData));
         console.log('Login data saved with auto-login enabled:', loginData);
@@ -102,6 +104,15 @@ const SettingsScreen = () => {
             style={styles.input}
           />
 
+          {/* Переключатель для авто-логина */}
+          <View style={styles.switchContainer}>
+            <Text>自動ログイン</Text>
+            <Switch
+              value={autoLoginEnabled}
+              onValueChange={setAutoLoginEnabled}
+            />
+          </View>
+
           <TouchableOpacity style={styles.saveButton} onPress={saveLoginDataAndLogin}>
             <Text style={styles.saveButtonText}>保存</Text>
           </TouchableOpacity>
@@ -135,6 +146,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderColor: '#ccc',
     borderRadius: 5,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 10,
   },
   saveButton: {
     backgroundColor: '#000',
