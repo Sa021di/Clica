@@ -33,6 +33,28 @@ const SettingsScreen = () => {
     fetchLoginData();
   }, []);
 
+  // Сохраняем состояние переключателя сразу при изменении
+  const handleAutoLoginToggle = async (newValue) => {
+    setAutoLoginEnabled(newValue);
+
+    try {
+      const storedData = await AsyncStorage.getItem('loginData');
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        const updatedData = { ...parsedData, autoLoginEnabled: newValue };
+        await AsyncStorage.setItem('loginData', JSON.stringify(updatedData));
+        console.log('Auto-login state updated:', updatedData);
+      } else {
+        // Если данных еще нет, создаем новую запись
+        const newLoginData = { userID, password, autoLoginEnabled: newValue };
+        await AsyncStorage.setItem('loginData', JSON.stringify(newLoginData));
+        console.log('New login data saved:', newLoginData);
+      }
+    } catch (error) {
+      console.error('Error saving auto-login state:', error);
+    }
+  };
+
   const saveLoginDataAndLogin = async () => {
     if (userID && password) {
       const loginData = { userID, password, autoLoginEnabled };
@@ -42,7 +64,7 @@ const SettingsScreen = () => {
         
         Alert.alert(
           'Success',
-          'Login data saved. Redirecting to login...',
+          'Login data saved.',
           [
             {
               text: 'OK',
@@ -109,7 +131,7 @@ const SettingsScreen = () => {
             <Text>自動ログイン</Text>
             <Switch
               value={autoLoginEnabled}
-              onValueChange={setAutoLoginEnabled}
+              onValueChange={handleAutoLoginToggle} // Вызываем функцию сохранения при изменении
             />
           </View>
 

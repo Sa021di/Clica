@@ -8,6 +8,7 @@ const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [webViewKey, setWebViewKey] = useState(0);
+  const [currentUrl, setCurrentUrl] = useState('https://clica.jp/app/'); // Управление текущим URL
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
@@ -65,13 +66,11 @@ const LoginScreen = () => {
             console.error('Form elements not found.');
           }
 
-          // Перехватываем клик на кнопку логаута
-          var logoutButton = document.querySelector('a[href="https://clica.jp/app/logout.aspx"]');
-          if (logoutButton) {
-            logoutButton.addEventListener('click', function() {
-              window.ReactNativeWebView.postMessage('logout');
-            });
-          }
+          // Удаляем атрибут target="_blank" у всех ссылок
+          var links = document.querySelectorAll('a[target="_blank"]');
+          links.forEach(function(link) {
+            link.removeAttribute('target');
+          });
         })();
       `;
     }
@@ -82,7 +81,7 @@ const LoginScreen = () => {
 
   const handleNavigationStateChange = async (event) => {
     console.log('Navigating to:', event.url);
-    
+
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
       navigation.setOptions({ tabBarStyle: { display: 'none' } });
@@ -93,7 +92,6 @@ const LoginScreen = () => {
     if (event.url.includes('logout.aspx')) {
       console.log('Logout initiated');
   
-      // Выключаем авто-логин, но сохраняем данные пользователя в AsyncStorage
       const loginData = await AsyncStorage.getItem('loginData');
       if (loginData) {
         const updatedData = { ...JSON.parse(loginData), autoLoginEnabled: false };
@@ -101,15 +99,37 @@ const LoginScreen = () => {
         console.log('Auto-login disabled, but login data remains in AsyncStorage');
       }
   
-      // Переход на экран авторизации
       navigation.replace('AuthTabs');
     }
-  };  
+  };
+
+  const handleShouldStartLoadWithRequest = (request) => {
+    const url = request.url;
+
+    // Перехватываем все запросы с http://clica.jp и заменяем их на https
+    if (url.startsWith('http://clica.jp')) {
+      const secureUrl = url.replace('http://', 'https://');
+      console.log(`Redirecting to secure URL: ${secureUrl}`);
+      setCurrentUrl(secureUrl);
+      setWebViewKey(prevKey => prevKey + 1);
+      return false;
+    }
+
+    // Перехватываем все ссылки и загружаем их внутри WebView
+    if (request.navigationType === 'click' && request.url !== currentUrl) {
+      console.log('Opening link inside WebView:', request.url);
+      setCurrentUrl(request.url);
+      setWebViewKey(prevKey => prevKey + 1); // Перезагружаем WebView с новым URL
+      return false; // Останавливаем внешнее открытие и загружаем в WebView
+    }
+
+    return true; // Разрешаем все остальные запросы
+  };
 
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
     if (event.nativeEvent.data === 'logout') {
-      handleNavigationStateChange({ url: 'logout.aspx' }); // Имитируем переход к логауту
+      handleNavigationStateChange({ url: 'logout.aspx' });
     }
   };
 
@@ -122,18 +142,20 @@ const LoginScreen = () => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, }}>
+    <SafeAreaView style={{ flex: 1, paddingTop: 50}}>
       <WebView
         key={webViewKey}
-        source={{ uri: 'https://clica.jp/app/' }}
+        source={{ uri: currentUrl }}
         injectedJavaScript={injectJavaScriptToFillForm()}
         onNavigationStateChange={handleNavigationStateChange}
+        onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         startInLoadingState={true}
         mixedContentMode="compatibility"
         originWhitelist={['*']}
+        setSupportMultipleWindows={false} // Отключаем поддержку открытия нескольких окон
         style={{ flex: 1 }}
       />
     </SafeAreaView>

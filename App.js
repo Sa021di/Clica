@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Animated, Easing, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,12 +7,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './screens/LoginScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { WebView } from 'react-native-webview';
+import Ionicons from 'react-native-vector-icons/Ionicons'; // Импорт иконок
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const AuthTabs = ({ onLogin }) => (
-  <Tab.Navigator screenOptions={{ headerShown: false }}>
+  <Tab.Navigator
+    screenOptions={({ route }) => ({
+      headerShown: false,
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+
+        if (route.name === 'Login') {
+          iconName = focused ? 'log-in' : 'log-in-outline'; // Иконки для вкладки "Login"
+        } else if (route.name === 'Settings') {
+          iconName = focused ? 'settings' : 'settings-outline'; // Иконки для вкладки "Settings"
+        }
+
+        // Возвращаем иконку
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: '#87CEFA', // Светло-синий цвет для активных иконок
+      tabBarInactiveTintColor: 'gray', // Серый цвет для неактивных иконок
+    })}
+  >
     <Tab.Screen name="Login" children={() => <LoginScreen onLogin={onLogin} />} />
     <Tab.Screen name="Settings" children={() => <SettingsScreen onSettingsSubmit={onLogin} />} />
   </Tab.Navigator>
@@ -20,9 +39,7 @@ const AuthTabs = ({ onLogin }) => (
 
 const MainStack = ({ onLogin, isLoggedIn }) => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="AuthTabs">
-      {() => <AuthTabs onLogin={onLogin} />}
-    </Stack.Screen>
+    <Stack.Screen name="AuthTabs" component={AuthTabs} />
     <Stack.Screen name="Main" component={WebView} />
   </Stack.Navigator>
 );
