@@ -8,7 +8,7 @@ const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [webViewKey, setWebViewKey] = useState(0);
-  const [currentUrl, setCurrentUrl] = useState('https://clica.jp/app/'); // Управление текущим URL
+  const [currentUrl, setCurrentUrl] = useState('https://clica.jp/app/');
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
@@ -66,11 +66,17 @@ const LoginScreen = () => {
             console.error('Form elements not found.');
           }
 
-          // Удаляем атрибут target="_blank" у всех ссылок
-          var links = document.querySelectorAll('a[target="_blank"]');
-          links.forEach(function(link) {
-            link.removeAttribute('target');
-          });
+          // Перехватываем клик на кнопку логаута
+          var logoutButton = document.querySelector('a[href="https://clica.jp/app/logout.aspx"]');
+          if (logoutButton) {
+            console.log('Logout button found. Adding event listener.');
+            logoutButton.addEventListener('click', function() {
+              window.ReactNativeWebView.postMessage('logout');
+              console.log('Logout button clicked, message sent to React Native WebView.');
+            });
+          } else {
+            console.error('Logout button not found.');
+          }
         })();
       `;
     }
@@ -91,14 +97,24 @@ const LoginScreen = () => {
 
     if (event.url.includes('logout.aspx')) {
       console.log('Logout initiated');
-  
-      const loginData = await AsyncStorage.getItem('loginData');
-      if (loginData) {
-        const updatedData = { ...JSON.parse(loginData), autoLoginEnabled: false };
-        await AsyncStorage.setItem('loginData', JSON.stringify(updatedData));
-        console.log('Auto-login disabled, but login data remains in AsyncStorage');
+
+      // Выключаем авто-логин, но сохраняем данные пользователя в AsyncStorage
+      const storedLoginData = await AsyncStorage.getItem('loginData');
+      if (storedLoginData) {
+        let parsedData = JSON.parse(storedLoginData);
+        parsedData.autoLoginEnabled = false;
+
+        try {
+          await AsyncStorage.setItem('loginData', JSON.stringify(parsedData));
+          console.log('Auto-login disabled after logout.', parsedData);
+        } catch (error) {
+          console.error('Error saving loginData after logout:', error);
+        }
+      } else {
+        console.error('No login data found in AsyncStorage during logout.');
       }
-  
+
+      // Переход на экран авторизации
       navigation.replace('AuthTabs');
     }
   };
@@ -129,7 +145,8 @@ const LoginScreen = () => {
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
     if (event.nativeEvent.data === 'logout') {
-      handleNavigationStateChange({ url: 'logout.aspx' });
+      console.log('Logout message received from WebView');
+      handleNavigationStateChange({ url: 'logout.aspx' }); // Имитируем переход к логауту
     }
   };
 
@@ -142,7 +159,7 @@ const LoginScreen = () => {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingTop: 50}}>
+    <SafeAreaView style={{ flex: 1 }}>
       <WebView
         key={webViewKey}
         source={{ uri: currentUrl }}
