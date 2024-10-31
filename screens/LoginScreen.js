@@ -9,10 +9,10 @@ const MAX_LOGIN_ATTEMPTS = 10;
 const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loginAttempts, setLoginAttempts] = useState(0);
   const [webViewKey, setWebViewKey] = useState(0);
-  const [alertShown, setAlertShown] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('https://clica.jp/app/');
+  const [loginAttempts, setLoginAttempts] = useState(0); // Счетчик попыток
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
@@ -44,6 +44,12 @@ const LoginScreen = () => {
     }
   }, [isFocused]);
 
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigation.setOptions({ tabBarStyle: { display: 'none' } });
+    }
+  }, [isLoggedIn]);
+
   const injectJavaScriptToFillForm = () => {
     if (!loginData) {
       console.log('Login data is missing or auto-login is disabled.');
@@ -70,7 +76,6 @@ const LoginScreen = () => {
             console.error('Form elements not found.');
           }
 
-          // Перехватываем клик на кнопку логаута
           var logoutButton = document.querySelector('a[href="https://clica.jp/app/logout.aspx"]');
           if (logoutButton) {
             console.log('Logout button found. Adding event listener.');
@@ -94,17 +99,42 @@ const LoginScreen = () => {
 
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
-      navigation.setOptions({ tabBarStyle: { display: 'none' } });
-      setLoginAttempts(0);
-      setAlertShown(false); // Reset alert state after successful login
+      setIsLoggedIn(true);
     } else {
-      navigation.setOptions({ tabBarStyle: { display: 'flex' } });
+      setIsLoggedIn(false);
+    }
+
+    // Обрабатываем неудачную попытку входа
+    if (event.url.includes('default.aspx') && loginData && loginData.autoLoginEnabled) {
+      setLoginAttempts(prevAttempts => {
+        const newAttempts = prevAttempts + 1;
+        console.log(`Login attempt: ${newAttempts}`);
+
+        if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+          console.log('Max login attempts reached. Clearing login data.');
+          setLoginData(null);
+          setLoginAttempts(0);
+          AsyncStorage.removeItem('loginData').then(() => {
+            Alert.alert(
+              'Login Error',
+              'Too many login attempts. Please re-enter your credentials.',
+              [{ 
+                text: 'OK', 
+                onPress: () => {
+                  navigation.navigate('AuthTabs', { screen: 'Settings' });
+                } 
+              }]
+            );
+          });
+        }
+
+        return newAttempts;
+      });
     }
 
     if (event.url.includes('logout.aspx')) {
       console.log('Logout initiated');
 
-      // Выключаем авто-логин, но сохраняем данные пользователя в AsyncStorage
       const storedLoginData = await AsyncStorage.getItem('loginData');
       if (storedLoginData) {
         let parsedData = JSON.parse(storedLoginData);
@@ -120,37 +150,14 @@ const LoginScreen = () => {
         console.error('No login data found in AsyncStorage during logout.');
       }
 
-      // Переход на экран авторизации
+      setIsLoggedIn(false);
       navigation.replace('AuthTabs');
-    } else if (loginAttempts >= MAX_LOGIN_ATTEMPTS && !alertShown) {
-      console.log('Max login attempts reached. Clearing login data.');
-      await AsyncStorage.removeItem('loginData');
-      setLoginData(null);
-      setAlertShown(true);
-
-      Alert.alert(
-        'Login Error',
-        'Too many failed attempts. Please re-enter your credentials.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              console.log('Redirecting to Settings for re-login');
-              navigation.navigate('AuthTabs', { screen: 'Settings' });
-            }
-          }
-        ]
-      );
-    } else {
-      setLoginAttempts(prev => prev + 1);
-      console.log(`Login attempt: ${loginAttempts + 1}`);
     }
   };
 
   const handleShouldStartLoadWithRequest = (request) => {
     const url = request.url;
 
-    // Перехватываем все запросы с http://clica.jp и заменяем их на https
     if (url.startsWith('http://clica.jp')) {
       const secureUrl = url.replace('http://', 'https://');
       console.log(`Redirecting to secure URL: ${secureUrl}`);
@@ -159,22 +166,21 @@ const LoginScreen = () => {
       return false;
     }
 
-    // Перехватываем все ссылки и загружаем их внутри WebView
     if (request.navigationType === 'click' && request.url !== currentUrl) {
       console.log('Opening link inside WebView:', request.url);
       setCurrentUrl(request.url);
-      setWebViewKey(prevKey => prevKey + 1); // Перезагружаем WebView с новым URL
-      return false; // Останавливаем внешнее открытие и загружаем в WebView
+      setWebViewKey(prevKey => prevKey + 1);
+      return false;
     }
 
-    return true; // Разрешаем все остальные запросы
+    return true;
   };
 
   const handleMessage = (event) => {
     console.log('Message from WebView:', event.nativeEvent.data);
     if (event.nativeEvent.data === 'logout') {
       console.log('Logout message received from WebView');
-      handleNavigationStateChange({ url: 'logout.aspx' }); // Имитируем переход к логауту
+      handleNavigationStateChange({ url: 'logout.aspx' });
     }
   };
 
@@ -200,7 +206,7 @@ const LoginScreen = () => {
         startInLoadingState={true}
         mixedContentMode="compatibility"
         originWhitelist={['*']}
-        setSupportMultipleWindows={false} // Отключаем поддержку открытия нескольких окон
+        setSupportMultipleWindows={false}
         style={{ flex: 1 }}
       />
     </SafeAreaView>
