@@ -4,10 +4,14 @@ import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 
+const MAX_LOGIN_ATTEMPTS = 10;
+
 const LoginScreen = () => {
   const [loginData, setLoginData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginAttempts, setLoginAttempts] = useState(0);
   const [webViewKey, setWebViewKey] = useState(0);
+  const [alertShown, setAlertShown] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('https://clica.jp/app/');
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -91,6 +95,8 @@ const LoginScreen = () => {
     if (event.url.includes('home/default.aspx')) {
       console.log('Successfully logged in');
       navigation.setOptions({ tabBarStyle: { display: 'none' } });
+      setLoginAttempts(0);
+      setAlertShown(false); // Reset alert state after successful login
     } else {
       navigation.setOptions({ tabBarStyle: { display: 'flex' } });
     }
@@ -116,6 +122,28 @@ const LoginScreen = () => {
 
       // Переход на экран авторизации
       navigation.replace('AuthTabs');
+    } else if (loginAttempts >= MAX_LOGIN_ATTEMPTS && !alertShown) {
+      console.log('Max login attempts reached. Clearing login data.');
+      await AsyncStorage.removeItem('loginData');
+      setLoginData(null);
+      setAlertShown(true);
+
+      Alert.alert(
+        'Login Error',
+        'Too many failed attempts. Please re-enter your credentials.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('Redirecting to Settings for re-login');
+              navigation.navigate('AuthTabs', { screen: 'Settings' });
+            }
+          }
+        ]
+      );
+    } else {
+      setLoginAttempts(prev => prev + 1);
+      console.log(`Login attempt: ${loginAttempts + 1}`);
     }
   };
 
